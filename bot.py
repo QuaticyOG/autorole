@@ -116,9 +116,9 @@ async def on_member_update(before, after):
 
 # ---------------- STARTUP ----------------
 
-async def main():
+@bot.event
+async def setup_hook():
     await setup_db()
     bot.loop.create_task(check_roles())
-    await bot.start(TOKEN)
 
-asyncio.run(main())
+bot.run(TOKEN)
