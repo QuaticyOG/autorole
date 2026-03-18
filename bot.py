@@ -2,16 +2,17 @@ import discord
 import asyncio
 import os
 import asyncpg
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
 TOKEN = os.getenv("TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 STRIKER_ROLE_ID = 1395362673088270346
 DAY3_ROLE_ID = 1482377410178715729
+LOG_CHANNEL_ID = 1429229785657249884  
 
-CHECK_INTERVAL = 60  # seconds
-TIME_REQUIRED = timedelta(minutes=1)  # CHANGE BACK TO hours=72 LATER
+CHECK_INTERVAL = 60
+TIME_REQUIRED = timedelta(hours=72)
 
 intents = discord.Intents.default()
 intents.members = True
@@ -27,12 +28,13 @@ async def setup_db():
     global db
     db = await asyncpg.create_pool(DATABASE_URL)
 
-    await db.execute("""
-        CREATE TABLE IF NOT EXISTS striker_users (
-            user_id BIGINT PRIMARY KEY,
-            timestamp TIMESTAMP
-        )
-    """)
+    async with db.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS striker_users (
+                user_id BIGINT PRIMARY KEY,
+                timestamp TIMESTAMP
+            )
+        """)
 
 
 async def add_user(user_id):
@@ -42,7 +44,7 @@ async def add_user(user_id):
             VALUES ($1, $2)
             ON CONFLICT (user_id)
             DO UPDATE SET timestamp = EXCLUDED.timestamp
-        """, user_id, datetime.utcnow())
+        """, user_id, datetime.now(UTC))
 
 
 async def remove_user(user_id):
@@ -55,6 +57,14 @@ async def remove_user(user_id):
 async def get_all_users():
     async with db.acquire() as conn:
         return await conn.fetch("SELECT user_id, timestamp FROM striker_users")
+
+
+# ---------------- LOGGING ----------------
+
+async def log(guild, message):
+    channel = guild.get_channel(LOG_CHANNEL_ID)
+    if channel:
+        await channel.send(message)
 
 
 # ---------------- ROLE CHECK LOOP ----------------
@@ -80,14 +90,18 @@ async def check_roles():
                 # If striker removed → cleanup
                 if striker_role not in member.roles:
                     await remove_user(user_id)
+
                     if day3_role in member.roles:
                         await member.remove_roles(day3_role)
+                        await log(guild, f"❌ Removed 3day from {member} (lost Striker)")
+
                     continue
 
                 # Check time
-                if datetime.utcnow() - timestamp >= TIME_REQUIRED:
+                if datetime.now(UTC) - timestamp >= TIME_REQUIRED:
                     if day3_role not in member.roles:
                         await member.add_roles(day3_role)
+                        await log(guild, f"✅ Gave 3day to {member}")
 
         await asyncio.sleep(CHECK_INTERVAL)
 
@@ -104,23 +118,6 @@ async def setup_hook():
 async def on_ready():
     print(f"Logged in as {bot.user}")
 
-    # 🔥 BACKFILL (RUN ONCE THEN REMOVE THIS BLOCK)
-    for guild in bot.guilds:
-        striker_role = guild.get_role(STRIKER_ROLE_ID)
-        day3_role = guild.get_role(DAY3_ROLE_ID)
-
-        if not striker_role:
-            continue
-
-        print(f"Backfilling {len(striker_role.members)} users...")
-
-        for member in striker_role.members:
-            await add_user(member.id)
-
-            # Give role instantly (optional)
-            if day3_role and day3_role not in member.roles:
-                await member.add_roles(day3_role)
-
 
 @bot.event
 async def on_member_update(before, after):
@@ -132,13 +129,16 @@ async def on_member_update(before, after):
 
     if striker_added:
         await add_user(after.id)
+        await log(after.guild, f"🟡 {after} got Striker → timer started")
 
     if striker_removed:
         await remove_user(after.id)
+        await log(after.guild, f"🔴 {after} lost Striker → timer reset")
 
         role = after.guild.get_role(DAY3_ROLE_ID)
         if role in after.roles:
             await after.remove_roles(role)
+            await log(after.guild, f"❌ Removed 3day from {after}")
 
 
 # ---------------- START ----------------
