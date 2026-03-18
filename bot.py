@@ -106,7 +106,7 @@ async def check_roles():
                         await member.add_roles(day3_role)
                         await log(guild, f"✅ Gave 3day to {member}")
 
-        await asyncio.sleep(CHECK_INTERVAL))
+        await asyncio.sleep(CHECK_INTERVAL)
 
 
 # ---------------- EVENTS ----------------
