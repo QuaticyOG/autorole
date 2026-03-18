@@ -25,7 +25,7 @@ db = None
 
 async def setup_db():
     global db
-    db = await asyncpg.connect(DATABASE_URL)
+    db = await asyncpg.create_pool(DATABASE_URL)
 
     await db.execute("""
         CREATE TABLE IF NOT EXISTS striker_users (
@@ -36,22 +36,25 @@ async def setup_db():
 
 
 async def add_user(user_id):
-    await db.execute("""
-        INSERT INTO striker_users (user_id, timestamp)
-        VALUES ($1, $2)
-        ON CONFLICT (user_id)
-        DO UPDATE SET timestamp = EXCLUDED.timestamp
-    """, user_id, datetime.utcnow())
+    async with db.acquire() as conn:
+        await conn.execute("""
+            INSERT INTO striker_users (user_id, timestamp)
+            VALUES ($1, $2)
+            ON CONFLICT (user_id)
+            DO UPDATE SET timestamp = EXCLUDED.timestamp
+        """, user_id, datetime.utcnow())
 
 
 async def remove_user(user_id):
-    await db.execute("""
-        DELETE FROM striker_users WHERE user_id = $1
-    """, user_id)
+    async with db.acquire() as conn:
+        await conn.execute("""
+            DELETE FROM striker_users WHERE user_id = $1
+        """, user_id)
 
 
 async def get_all_users():
-    return await db.fetch("SELECT user_id, timestamp FROM striker_users")
+    async with db.acquire() as conn:
+        return await conn.fetch("SELECT user_id, timestamp FROM striker_users")
 
 
 # ---------------- ROLE CHECK LOOP ----------------
