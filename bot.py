@@ -97,13 +97,16 @@ async def check_roles():
 
                     continue
 
+                # ✅ FIX TIMEZONE HERE (INSIDE LOOP)
+                timestamp = timestamp.replace(tzinfo=UTC)
+
                 # Check time
                 if datetime.now(UTC) - timestamp >= TIME_REQUIRED:
                     if day3_role not in member.roles:
                         await member.add_roles(day3_role)
                         await log(guild, f"✅ Gave 3day to {member}")
 
-        await asyncio.sleep(CHECK_INTERVAL)
+        await asyncio.sleep(CHECK_INTERVAL))
 
 
 # ---------------- EVENTS ----------------
