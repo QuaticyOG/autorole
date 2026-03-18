@@ -11,6 +11,7 @@ STRIKER_ROLE_ID = 1395362673088270346
 DAY3_ROLE_ID = 1482377410178715729
 
 CHECK_INTERVAL = 60  # seconds
+TIME_REQUIRED = timedelta(minutes=1)  # CHANGE BACK TO hours=72 LATER
 
 intents = discord.Intents.default()
 intents.members = True
@@ -81,7 +82,7 @@ async def check_roles():
                     continue
 
                 # Check time
-                if datetime.utcnow() - timestamp >= timedelta(minutes=1):
+                if datetime.utcnow() - timestamp >= TIME_REQUIRED:
                     if day3_role not in member.roles:
                         await member.add_roles(day3_role)
 
@@ -91,8 +92,31 @@ async def check_roles():
 # ---------------- EVENTS ----------------
 
 @bot.event
+async def setup_hook():
+    await setup_db()
+    bot.loop.create_task(check_roles())
+
+
+@bot.event
 async def on_ready():
     print(f"Logged in as {bot.user}")
+
+    # 🔥 BACKFILL (RUN ONCE THEN REMOVE THIS BLOCK)
+    for guild in bot.guilds:
+        striker_role = guild.get_role(STRIKER_ROLE_ID)
+        day3_role = guild.get_role(DAY3_ROLE_ID)
+
+        if not striker_role:
+            continue
+
+        print(f"Backfilling {len(striker_role.members)} users...")
+
+        for member in striker_role.members:
+            await add_user(member.id)
+
+            # Give role instantly (optional)
+            if day3_role and day3_role not in member.roles:
+                await member.add_roles(day3_role)
 
 
 @bot.event
@@ -114,11 +138,6 @@ async def on_member_update(before, after):
             await after.remove_roles(role)
 
 
-# ---------------- STARTUP ----------------
-
-@bot.event
-async def setup_hook():
-    await setup_db()
-    bot.loop.create_task(check_roles())
+# ---------------- START ----------------
 
 bot.run(TOKEN)
