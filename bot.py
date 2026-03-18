@@ -132,11 +132,11 @@ async def on_member_update(before, after):
 
     if striker_added:
         await add_user(after.id)
-        await log(after.guild, f"🟡 {after} got Striker → timer started")
+        await log(after.guild, f"🟡 {after} Added Striker Tag → timer started")
 
     if striker_removed:
         await remove_user(after.id)
-        await log(after.guild, f"🔴 {after} lost Striker → timer reset")
+        await log(after.guild, f"🔴 {after} Removed Striker Tag → timer reset")
 
         role = after.guild.get_role(DAY3_ROLE_ID)
         if role in after.roles:
