@@ -44,7 +44,7 @@ async def add_user(user_id):
             VALUES ($1, $2)
             ON CONFLICT (user_id)
             DO UPDATE SET timestamp = EXCLUDED.timestamp
-        """, user_id, datetime.now(UTC))
+        """, user_id, datetime.utcnow())
 
 
 async def remove_user(user_id):
