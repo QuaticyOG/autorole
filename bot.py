@@ -40,7 +40,7 @@ async def setup_db():
 async def add_user(user_id):
     async with db.acquire() as conn:
         await conn.execute("""
-            INSERT INTO striker_users (user_id, timestamp)
+            INSERT INTO _users (user_id, timestamp)
             VALUES ($1, $2)
             ON CONFLICT (user_id)
             DO UPDATE SET timestamp = EXCLUDED.timestamp
@@ -50,13 +50,13 @@ async def add_user(user_id):
 async def remove_user(user_id):
     async with db.acquire() as conn:
         await conn.execute("""
-            DELETE FROM striker_users WHERE user_id = $1
+            DELETE FROM _users WHERE user_id = $1
         """, user_id)
 
 
 async def get_all_users():
     async with db.acquire() as conn:
-        return await conn.fetch("SELECT user_id, timestamp FROM striker_users")
+        return await conn.fetch("SELECT user_id, timestamp FROM _users")
 
 
 # ---------------- LOGGING ----------------
@@ -93,7 +93,7 @@ async def check_roles():
 
                     if day3_role in member.roles:
                         await member.remove_roles(day3_role)
-                        await log(guild, f"❌ Removed 3day from {member} (lost Striker)")
+                        await log(guild, f"❌ Removed 3day from {member} (lost Hellraiser)")
 
                     continue
 
@@ -132,11 +132,11 @@ async def on_member_update(before, after):
 
     if striker_added:
         await add_user(after.id)
-        await log(after.guild, f"🟡 {after} Added Striker Tag → timer started")
+        await log(after.guild, f"🟡 {after} Added Hellraiser Tag → timer started")
 
     if striker_removed:
         await remove_user(after.id)
-        await log(after.guild, f"🔴 {after} Removed Striker Tag → timer reset")
+        await log(after.guild, f"🔴 {after} Removed Hellraiser → timer reset")
 
         role = after.guild.get_role(DAY3_ROLE_ID)
         if role in after.roles:
