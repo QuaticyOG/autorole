@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, UTC
 TOKEN = os.getenv("TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-STRIKER_ROLE_ID = 1529052968203063428
+HELLRAISER_ROLE_ID = 1529052968203063428
 DAY3_ROLE_ID = 1537770214651990098
 LOG_CHANNEL_ID = 1562946777471127562 
 
@@ -30,7 +30,7 @@ async def setup_db():
 
     async with db.acquire() as conn:
         await conn.execute("""
-            CREATE TABLE IF NOT EXISTS striker_users (
+            CREATE TABLE IF NOT EXISTS hellraiser_users (
                 user_id BIGINT PRIMARY KEY,
                 timestamp TIMESTAMP
             )
@@ -40,23 +40,25 @@ async def setup_db():
 async def add_user(user_id):
     async with db.acquire() as conn:
         await conn.execute("""
-            INSERT INTO _users (user_id, timestamp)
+            INSERT INTO hellraiser_users (user_id, timestamp)
             VALUES ($1, $2)
             ON CONFLICT (user_id)
             DO UPDATE SET timestamp = EXCLUDED.timestamp
-        """, user_id, datetime.utcnow())
+        """, user_id, datetime.now(UTC).replace(tzinfo=None))
 
 
 async def remove_user(user_id):
     async with db.acquire() as conn:
         await conn.execute("""
-            DELETE FROM _users WHERE user_id = $1
+            DELETE FROM hellraiser_users WHERE user_id = $1
         """, user_id)
 
 
 async def get_all_users():
     async with db.acquire() as conn:
-        return await conn.fetch("SELECT user_id, timestamp FROM _users")
+        return await conn.fetch(
+            "SELECT user_id, timestamp FROM hellraiser_users"
+        )
 
 
 # ---------------- LOGGING ----------------
@@ -76,7 +78,7 @@ async def check_roles():
         rows = await get_all_users()
 
         for guild in bot.guilds:
-            striker_role = guild.get_role(STRIKER_ROLE_ID)
+            striker_role = guild.get_role(HELLRAISER_ROLE_ID)
             day3_role = guild.get_role(DAY3_ROLE_ID)
 
             for row in rows:
@@ -127,8 +129,8 @@ async def on_member_update(before, after):
     before_roles = {r.id for r in before.roles}
     after_roles = {r.id for r in after.roles}
 
-    striker_added = STRIKER_ROLE_ID not in before_roles and STRIKER_ROLE_ID in after_roles
-    striker_removed = STRIKER_ROLE_ID in before_roles and STRIKER_ROLE_ID not in after_roles
+    striker_added = HELLRAISER_ROLE_ID not in before_roles and HELLRAISER_ROLE_ID in after_roles
+    striker_removed = HELLRAISER_ROLE_ID in before_roles and HELLRAISER_ROLE_ID not in after_roles
 
     if striker_added:
         await add_user(after.id)
